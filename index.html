@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Phishing URL Analyzer</title>
+</head>
+<body>
+    <h1>Phishing URL Risk Analyzer</h1>
+    <p>Enter a URL to see warning signals.</p>
+
+    <form id="analyze-form">
+        <label for="url">Website URL</label>
+        <input id="url" name="url" type="url"
+    placeholder="https://example.com" required>
+        <button type="submit">Analyze</button>
+    </form>
+
+    <section id="results"></section>
+    <script>
+        const form = document.getElementById("analyze-form")
+        const urlInput = document.getElementById("url")
+        const results = document.getElementById("results")
+
+        form.addEventListener("submit", async function (event){
+            event.preventDefault();
+            const response = await fetch("/analyze",{
+                method:"POST",
+                headers:{
+                    "Content-Type":"application/json"
+                },
+                body: JSON.stringify({
+                    url: urlInput.value
+                })
+            });
+            const data = await response.json();
+            results.textContent = JSON.stringify(data, null, 2);
+        });
+        </script>
+</body>
+</html>

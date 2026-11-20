@@ -1,10 +1,11 @@
 from fastapi import FastAPI
 from pydantic import BaseModel, HttpUrl
+from fastapi.responses import FileResponse
 app = FastAPI()
 
 @app.get("/")
 def home():
-    return {"message": "Phishing URL Risk Analyzer"}
+    return FileResponse("index.html")
 
 class UrlRequest(BaseModel):
     url: HttpUrl
