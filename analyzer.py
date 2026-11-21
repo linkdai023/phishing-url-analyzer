@@ -72,6 +72,19 @@ def check_brand_impersonation(parsed: SplitResult) -> Signal | None:
             )
     return None
 
+def check_free_hosting(parsed: SplitResult) -> Signal | None:
+    if parsed.hostname is None:
+        return None
+    ext = tldextract.extract(parsed.hostname)
+    registered = f"{ext.domain}.{ext.suffix}"
+    if registered in FREE_HOSTING and ext.subdomain not in ("", "www"):
+        return Signal(
+            rule="free_hosting",
+            points=20,
+            reason=f"The site is hosted on a free platform ({registered}). This is common for both personal sites and phishing, so it is a weak signal on its own.",
+        )
+    return None
+
 OFFICIAL_DOMAINS = {
     "paypal": {"paypal.com"},
     "apple": {"apple.com", "icloud.com"},
@@ -83,9 +96,13 @@ OFFICIAL_DOMAINS = {
     "interac": {"interac.ca"},
 }
 
+FREE_HOSTING = {
+    "pages.dev", "blogspot.com", "github.io", "vercel.app",
+    "workers.dev", "web.app", "firebaseapp.com", "netlify.app",
+    "weebly.com", "wixsite.com",
+}
 
-
-RULES = [check_http, check_at_symbol, check_ip_host, check_punycode, check_brand_impersonation]
+RULES = [check_http, check_at_symbol, check_ip_host, check_punycode, check_brand_impersonation, check_free_hosting]
 
 def analyze(url: str) -> dict:
     parsed = urlsplit(url)

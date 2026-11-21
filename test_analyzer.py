@@ -1,6 +1,6 @@
 from urllib.parse import urlsplit
 
-from analyzer import analyze,check_http, check_at_symbol, check_ip_host, check_punycode, check_brand_impersonation
+from analyzer import analyze,check_http, check_at_symbol, check_ip_host, check_punycode, check_brand_impersonation, check_free_hosting
 
 
 def test_http_triggers():
@@ -82,4 +82,17 @@ def test_brand_inside_longer_word_does_not_trigger():
 
 def test_brand_owned_tld_does_not_trigger():
     result = check_brand_impersonation(urlsplit("https://cloud.microsoft"))
+    assert result is None
+
+def test_free_hosting_triggers():
+    result = check_free_hosting(urlsplit("https://myblog.blogspot.com"))
+    assert result is not None
+    assert result.points == 20
+
+def test_free_hosting_does_not_trigger():
+    result = check_free_hosting(urlsplit("https://example.com"))
+    assert result is None
+
+def test_free_hosting_platform_homepage_does_not_trigger():
+    result = check_free_hosting(urlsplit("https://www.blogspot.com"))
     assert result is None
