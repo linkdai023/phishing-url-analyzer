@@ -37,7 +37,7 @@ def confusion(phishing_scores, benign_scores, threshold):
 
 def main():
     phishing = load_phishing("data/openphish.txt")
-    benign = load_benign("data/top-1m.csv", N_BENIGN)
+    benign = load_benign("data/top-1m.csv", N_BENIGN) + load_phishing("data/benign_free_hosting.txt")
 
     phishing_scores = [analyze(u)["risk_score"] for u in phishing]
     benign_scores = [analyze(u)["risk_score"] for u in benign]
