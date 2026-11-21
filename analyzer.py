@@ -1,3 +1,4 @@
+import ipaddress
 from dataclasses import dataclass
 from urllib.parse import urlsplit, SplitResult
 
@@ -28,8 +29,21 @@ def check_at_symbol(parsed: SplitResult) -> Signal | None:
             )
     return None
 
+def check_ip_host(parsed: SplitResult) -> Signal | None:
+    if parsed.hostname is None:
+        return None
+    try:
+        ipaddress.ip_address(parsed.hostname)
+    except ValueError:
+        return None
+    return Signal(
+        rule="ip_host",
+        points=30,
+        reason="The URL uses a raw IP address instead of a domain name; legitimate sites rarely do this.",
+    )
 
-RULES = [check_http, check_at_symbol]
+
+RULES = [check_http, check_at_symbol, check_ip_host]
 
 
 def analyze(url: str) -> dict:
