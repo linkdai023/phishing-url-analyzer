@@ -23,11 +23,11 @@ def check_http(parsed: SplitResult) -> Signal | None:
 
 def check_at_symbol(parsed: SplitResult) -> Signal | None:
     if parsed.username is not None:
-            return Signal(
-                rule="at_symbol",
-                points=40,
-                reason="The URL contains text before @; the real destination is the part after @."
-            )
+        return Signal(
+            rule="at_symbol",
+            points=40,
+            reason="The URL contains text before @; the real destination is the part after @."
+        )
     return None
 
 def check_ip_host(parsed: SplitResult) -> Signal | None:
@@ -85,6 +85,35 @@ def check_free_hosting(parsed: SplitResult) -> Signal | None:
         )
     return None
 
+def check_random_subdomain(parsed: SplitResult) -> Signal | None:
+    if parsed.hostname is None:
+        return None
+    sub = tldextract.extract(parsed.hostname).subdomain
+    hyphens = sub.count("-")
+    digits = sum(c.isdigit() for c in sub)
+    if hyphens >= 3 or digits >= 4:
+        return Signal(
+            rule="random_subdomain",
+            points=20,
+            reason=f"The subdomain looks auto-generated ({hyphens} hyphens, {digits} digits). Some personal sites also use names with numbers, so this is a weak signal on its own.",
+        )
+    return None
+
+
+def check_sensitive_words(parsed: SplitResult) -> Signal | None:
+    if parsed.hostname is None:
+        return None
+    sub = tldextract.extract(parsed.hostname).subdomain.lower()
+    found = [w for w in SENSITIVE_WORDS if w in sub]
+    if found:
+        return Signal(
+            rule="sensitive_words",
+            points=20,
+            reason=f"The subdomain contains words often used in scams: {', '.join(found)}. Anyone can put these words in a subdomain.",
+        )
+    return None
+
+
 OFFICIAL_DOMAINS = {
     "paypal": {"paypal.com"},
     "apple": {"apple.com", "icloud.com"},
@@ -102,7 +131,23 @@ FREE_HOSTING = {
     "weebly.com", "wixsite.com",
 }
 
-RULES = [check_http, check_at_symbol, check_ip_host, check_punycode, check_brand_impersonation, check_free_hosting]
+# Words that scam sites put in subdomains. Two groups:
+#  - actions that pressure the user (log in, verify, claim a prize)
+#  - brands that are commonly impersonated
+# Chosen from general knowledge of phishing, not tuned on the test data.
+SENSITIVE_WORDS = [
+    "login", "logon", "signin", "verify", "verification", "secure", "account",
+    "update", "recover", "unlock", "confirm", "support", "wallet", "billing",
+    "claim", "reward", "bonus", "prize", "giveaway", "winner", "airdrop",
+    "paypal", "apple", "icloud", "google", "gmail", "amazon", "microsoft",
+    "outlook", "office365", "netflix", "facebook", "instagram", "whatsapp",
+    "telegram", "tiktok", "roblox", "steam", "shopee", "lazada", "binance",
+    "coinbase", "metamask", "trezor", "ledger", "dhl", "fedex", "usps",
+    "canadapost", "interac", "scotiabank",
+]
+
+RULES = [check_http, check_at_symbol, check_ip_host, check_punycode, check_brand_impersonation, check_free_hosting,
+         check_random_subdomain, check_sensitive_words]
 
 def analyze(url: str) -> dict:
     parsed = urlsplit(url)

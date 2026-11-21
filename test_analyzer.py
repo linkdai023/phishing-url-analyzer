@@ -1,6 +1,16 @@
 from urllib.parse import urlsplit
 
-from analyzer import analyze,check_http, check_at_symbol, check_ip_host, check_punycode, check_brand_impersonation, check_free_hosting
+from analyzer import (
+    analyze,
+    check_at_symbol,
+    check_brand_impersonation,
+    check_free_hosting,
+    check_http,
+    check_ip_host,
+    check_punycode,
+    check_random_subdomain,
+    check_sensitive_words,
+)
 
 
 def test_http_triggers():
@@ -95,4 +105,47 @@ def test_free_hosting_does_not_trigger():
 
 def test_free_hosting_platform_homepage_does_not_trigger():
     result = check_free_hosting(urlsplit("https://www.blogspot.com"))
+    assert result is None
+
+
+def test_random_subdomain_hyphens_triggers():
+    result = check_random_subdomain(urlsplit("https://g8zj1-iy5-wn7e-zn8rz.pages.dev"))
+    assert result is not None
+
+
+def test_random_subdomain_digits_triggers():
+    result = check_random_subdomain(urlsplit("https://19263840.pages.dev"))
+    assert result is not None
+
+
+def test_readable_subdomain_does_not_trigger():
+    result = check_random_subdomain(urlsplit("https://metmuseum.github.io"))
+    assert result is None
+
+
+def test_random_subdomain_ignores_registered_domain():
+    # digits in the main domain (not the subdomain) should not count
+    result = check_random_subdomain(urlsplit("https://www.shop12345.com"))
+    assert result is None
+
+
+def test_sensitive_word_in_subdomain_triggers():
+    result = check_sensitive_words(urlsplit("https://wallet-login.pages.dev"))
+    assert result is not None
+    assert "wallet" in result.reason and "login" in result.reason
+
+
+def test_sensitive_word_glued_to_other_text_triggers():
+    result = check_sensitive_words(urlsplit("https://facebookteamhelp.blogspot.com"))
+    assert result is not None
+
+
+def test_no_sensitive_word_does_not_trigger():
+    result = check_sensitive_words(urlsplit("https://metmuseum.github.io"))
+    assert result is None
+
+
+def test_sensitive_word_only_in_registered_domain_does_not_trigger():
+    # the word must be in the subdomain; the registered domain is checked by other rules
+    result = check_sensitive_words(urlsplit("https://www.securedrop.org"))
     assert result is None

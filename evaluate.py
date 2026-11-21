@@ -7,7 +7,7 @@ THRESHOLDS = [1, 15, 20, 30, 40, 50]
 REPORT_THRESHOLD = 30   # 用这个报警线来列出误报和漏报
 
 
-def load_phishing(path):
+def load_lines(path):
     urls = []
     with open(path) as f:
         for line in f:
@@ -36,8 +36,8 @@ def confusion(phishing_scores, benign_scores, threshold):
 
 
 def main():
-    phishing = load_phishing("data/openphish.txt")
-    benign = load_benign("data/top-1m.csv", N_BENIGN) + load_phishing("data/benign_free_hosting.txt")
+    phishing = load_lines("data/openphish_dev.txt")
+    benign = load_benign("data/top-1m.csv", N_BENIGN) + load_lines("data/benign_free_hosting.txt")
 
     phishing_scores = [analyze(u)["risk_score"] for u in phishing]
     benign_scores = [analyze(u)["risk_score"] for u in benign]
