@@ -42,8 +42,20 @@ def check_ip_host(parsed: SplitResult) -> Signal | None:
         reason="The URL uses a raw IP address instead of a domain name; legitimate sites rarely do this.",
     )
 
+def check_punycode(parsed: SplitResult) -> Signal | None:
+    if parsed.hostname is None:
+        return None
+    if "xn--" in parsed.hostname:
+        return Signal(
+            rule="punycode",
+            points=30,
+            reason="The URL uses punycode; this can be used to spoof domain names."
+        )
+    return None
 
-RULES = [check_http, check_at_symbol, check_ip_host]
+
+
+RULES = [check_http, check_at_symbol, check_ip_host, check_punycode]
 
 
 def analyze(url: str) -> dict:
@@ -59,3 +71,4 @@ def analyze(url: str) -> dict:
         "risk_score": score,
         "risk_signals": [s.reason for s in signals],
     }
+
