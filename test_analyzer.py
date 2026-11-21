@@ -1,9 +1,13 @@
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
+
+import analyzer
 
 from analyzer import (
     analyze,
     check_at_symbol,
     check_brand_impersonation,
+    check_domain_age,
     check_free_hosting,
     check_http,
     check_ip_host,
@@ -149,3 +153,50 @@ def test_sensitive_word_only_in_registered_domain_does_not_trigger():
     # the word must be in the subdomain; the registered domain is checked by other rules
     result = check_sensitive_words(urlsplit("https://www.securedrop.org"))
     assert result is None
+
+
+# --- domain age -------------------------------------------------------------
+# These tests never use the network. `monkeypatch` swaps the real RDAP lookup
+# for a fake function, only for the duration of one test.
+
+def fake_registered(days_ago):
+    return lambda domain: datetime.now(timezone.utc) - timedelta(days=days_ago)
+
+
+def test_brand_new_domain_triggers(monkeypatch):
+    monkeypatch.setattr(analyzer, "fetch_registration_date", fake_registered(5))
+    result = check_domain_age(urlsplit("https://micrsoft-login.com"))
+    assert result is not None
+    assert result.points == 30
+
+
+def test_young_domain_gets_fewer_points(monkeypatch):
+    monkeypatch.setattr(analyzer, "fetch_registration_date", fake_registered(100))
+    result = check_domain_age(urlsplit("https://example.com"))
+    assert result.points == 15
+
+
+def test_old_domain_does_not_trigger(monkeypatch):
+    monkeypatch.setattr(analyzer, "fetch_registration_date", fake_registered(3000))
+    assert check_domain_age(urlsplit("https://example.com")) is None
+
+
+def test_unknown_age_is_reported_but_adds_no_points(monkeypatch):
+    monkeypatch.setattr(analyzer, "fetch_registration_date", lambda domain: None)
+    result = check_domain_age(urlsplit("https://example.tg"))
+    assert result is not None
+    assert result.points == 0
+
+
+def test_free_hosting_is_not_looked_up(monkeypatch):
+    def must_not_be_called(domain):
+        raise AssertionError("should not look up the age of a free hosting platform")
+    monkeypatch.setattr(analyzer, "fetch_registration_date", must_not_be_called)
+    assert check_domain_age(urlsplit("https://wallet-login.pages.dev")) is None
+
+
+def test_ip_address_is_not_looked_up(monkeypatch):
+    def must_not_be_called(domain):
+        raise AssertionError("an IP address has no registration date")
+    monkeypatch.setattr(analyzer, "fetch_registration_date", must_not_be_called)
+    assert check_domain_age(urlsplit("http://192.168.1.1/login")) is None

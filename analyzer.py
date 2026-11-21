@@ -1,7 +1,10 @@
 import ipaddress
+from datetime import datetime, timezone
 import tldextract
 from dataclasses import dataclass
 from urllib.parse import urlsplit, SplitResult
+
+from domain_age import fetch_registration_date
 
 
 @dataclass
@@ -114,6 +117,39 @@ def check_sensitive_words(parsed: SplitResult) -> Signal | None:
     return None
 
 
+def check_domain_age(parsed: SplitResult) -> Signal | None:
+    if parsed.hostname is None:
+        return None
+    ext = tldextract.extract(parsed.hostname)
+    if not ext.suffix:
+        return None  # e.g. an IP address: there is no registered domain to look up
+    registered = f"{ext.domain}.{ext.suffix}"
+    if registered in FREE_HOSTING:
+        return None  # the platform's age says nothing about the site on it
+
+    created = fetch_registration_date(registered)
+    if created is None:
+        return Signal(
+            rule="domain_age_unknown",
+            points=0,
+            reason=f"Could not find when {registered} was registered. Unknown does not mean safe.",
+        )
+    age_days = (datetime.now(timezone.utc) - created).days
+    if age_days < 30:
+        return Signal(
+            rule="new_domain",
+            points=30,
+            reason=f"{registered} was registered only {age_days} days ago. Scam sites often use brand-new domains.",
+        )
+    if age_days < 180:
+        return Signal(
+            rule="young_domain",
+            points=15,
+            reason=f"{registered} was registered {age_days} days ago (less than 6 months).",
+        )
+    return None
+
+
 OFFICIAL_DOMAINS = {
     "paypal": {"paypal.com"},
     "apple": {"apple.com", "icloud.com"},
@@ -147,7 +183,8 @@ SENSITIVE_WORDS = [
 ]
 
 RULES = [check_http, check_at_symbol, check_ip_host, check_punycode, check_brand_impersonation, check_free_hosting,
-         check_random_subdomain, check_sensitive_words]
+         check_random_subdomain, check_sensitive_words,
+         check_domain_age]
 
 def analyze(url: str) -> dict:
     parsed = urlsplit(url)
