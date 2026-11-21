@@ -75,3 +75,11 @@ def test_brand_impersonation_dash_domain_triggers():
 def test_official_brand_domain_does_not_trigger():
     result = check_brand_impersonation(urlsplit("https://www.paypal.com"))
     assert result is None
+
+def test_brand_inside_longer_word_does_not_trigger():
+    result = check_brand_impersonation(urlsplit("https://amazonaws.com"))
+    assert result is None
+
+def test_brand_owned_tld_does_not_trigger():
+    result = check_brand_impersonation(urlsplit("https://cloud.microsoft"))
+    assert result is None

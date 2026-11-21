@@ -54,13 +54,17 @@ def check_punycode(parsed: SplitResult) -> Signal | None:
         )
     return None
 
+def hostname_tokens(hostname: str) -> list[str]:
+    return hostname.replace("-", ".").split(".")
+
 def check_brand_impersonation(parsed: SplitResult) -> Signal | None:
     if parsed.hostname is None:
         return None
     ext = tldextract.extract(parsed.hostname)
     registered = f"{ext.domain}.{ext.suffix}"
+    tokens = hostname_tokens(parsed.hostname) 
     for brand, official in OFFICIAL_DOMAINS.items():
-        if brand in parsed.hostname and registered not in official:
+        if brand in tokens and registered not in official and ext.suffix != brand:
             return Signal(
                 rule="brand_impersonation",
                 points=50,
