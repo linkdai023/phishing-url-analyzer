@@ -1,10 +1,12 @@
 import csv
+import sys
 
 from analyzer import analyze
 
 N_BENIGN = 300
 THRESHOLDS = [1, 15, 20, 30, 40, 50]
 REPORT_THRESHOLD = 30   # 用这个报警线来列出误报和漏报
+DEV_PATH = "data/openphish_dev.txt"
 
 
 def load_lines(path):
@@ -36,7 +38,21 @@ def confusion(phishing_scores, benign_scores, threshold):
 
 
 def main():
-    phishing = load_lines("data/openphish_dev.txt")
+    # Usage:
+    #   python3 evaluate.py                          -> development set
+    #   python3 evaluate.py data/openphish_test.txt  -> a test set
+    phishing_path = sys.argv[1] if len(sys.argv) > 1 else DEV_PATH
+    phishing = load_lines(phishing_path)
+
+    if phishing_path != DEV_PATH:
+        # The feed is a rolling list: some URLs may also be in the dev set.
+        # Remove them, otherwise the "test" would include questions we already saw.
+        dev = set(load_lines(DEV_PATH))
+        before = len(phishing)
+        phishing = [u for u in phishing if u not in dev]
+        print(f"Test set: {phishing_path}  ({before - len(phishing)} URLs also in the dev set were removed)")
+    else:
+        print(f"Development set: {phishing_path}")
     benign = load_benign("data/top-1m.csv", N_BENIGN) + load_lines("data/benign_free_hosting.txt")
 
     phishing_scores = [analyze(u)["risk_score"] for u in phishing]
